@@ -78,6 +78,13 @@ def test_health_and_dataset_info(authenticated_client):
     assert authenticated_client.get("/dataset/info").status_code == 200
 
 
+def test_deployment_health_is_public():
+    with TestClient(app) as client:
+        response = client.get("/healthz")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+
 def test_saved_evaluation_and_training_reports_are_available(authenticated_client):
     comparison = authenticated_client.get("/analytics/model-comparison")
     history = authenticated_client.get("/analytics/training-history")

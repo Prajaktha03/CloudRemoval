@@ -36,5 +36,12 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.get("/healthz", include_in_schema=False)
+async def deployment_health():
+    return {"status": "ok"}
+
+
 app.include_router(auth_router)
 app.include_router(router)

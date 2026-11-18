@@ -73,13 +73,29 @@ npm run build
 
 The frontend targets the existing Python API. Project CRUD, dataset object storage, a Node/Express service, PostgreSQL persistence, and asynchronous job progress require backend work beyond this interface.
 
+## Deploy frontend on Vercel and API on Render
+
+The Next.js frontend and FastAPI/PyTorch API are separate hosted services, presented to the browser as one site: Vercel proxies `/api/*` requests to Render. The repository includes a Render Blueprint in `render.yaml`; the full training dataset is intentionally not deployed.
+
+1. Push this repository to GitHub and import `Prajaktha03/CloudRemoval` in Render using **New → Blueprint**. Review the Blueprint before applying it. The API uses a paid Standard web service (1 CPU, 2 GB RAM) and a 1 GB persistent disk for the model checkpoint and SQLite experiment ledger; review current provider pricing before confirming. The smaller Starter plan has only 512 MB RAM and is not configured for this PyTorch model.
+2. In Render, set the Blueprint's `MODEL_CHECKPOINT_URL` to a private, durable download URL for the trained `generator.pt` checkpoint. Keep the URL private and out of GitHub. On first startup, the service downloads it to `/var/data/generator.pt`; the persistent disk retains it across restarts. Confirm `GET https://<render-service>.onrender.com/health` reports `model.available: true` after startup. If no checkpoint URL is set, the API can start but prediction remains unavailable.
+3. In Render, set `FRONTEND_ORIGINS` to the exact Vercel site origin, such as `https://cloud-removal.vercel.app` (scheme and hostname only, no path or trailing slash). Include additional trusted Vercel preview origins only if needed.
+4. Import the same GitHub repository in Vercel and set **Root Directory** to `frontend`. Add the environment variable `RENDER_API_URL` with the Render service origin, such as `https://cloud-removal-api.onrender.com`; do not add a path suffix. Leave `NEXT_PUBLIC_API_URL` unset in production so browser requests use the same-origin `/api` proxy. Redeploy after changing environment variables.
+5. In the Render service shell, provision the sign-in account interactively with `python -m backend.create_admin`. Use a unique password of at least 12 characters; do not put credentials in source control or chat.
+6. Open the Vercel URL, sign in, and verify the Studio can upload the sample inputs in `data/sample_uploads/sen12ms_test_patch_212/` and download a prediction. Check Render `/health` if the model is unavailable.
+
+The deployment uses HTTPS-only session cookies and a same-origin Vercel API proxy, so the browser does not need cross-site cookies or direct CORS access to Render. The Render API's `FRONTEND_ORIGINS` must still match the exact Vercel origin for state-changing requests. `GET /healthz` is an unauthenticated process health check for Render; `/health` continues to require sign-in and reports checkpoint status.
+
+The 15 GB SEN12MS-CR-TS training corpus and generated reports are not included in this demo deployment. Consequently, dataset-backed sample previews and historical analytics that depend on those files may be unavailable; this does not prevent model inference when the checkpoint is installed.
+
 ## Configuration
 
 Configuration uses environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `MODEL_CHECKPOINT` | `outputs/checkpoints/generator.pt` | Generator state dictionary or a checkpoint containing `generator` / `model_state_dict` |
+| `MODEL_CHECKPOINT` | `outputs/checkpoints/generator.pt` | Generator state dictionary or a checkpoint containing `generator` / `model_state_dict`; Render stores it on `/var/data` |
+| `MODEL_CHECKPOINT_URL` | unset | Optional private download URL used by the Render startup script to fetch the checkpoint onto its persistent disk |
 | `OPTICAL_CHANNELS` | `13` | Required optical band count |
 | `SAR_CHANNELS` | `2` | Required SAR band count |
 | `MODEL_BASE_CHANNELS` | `32` | U-Net base width used to construct the checkpoint architecture |
@@ -88,7 +104,7 @@ Configuration uses environment variables:
 | `EXPERIMENTS_DB` | `data/experiments.sqlite3` | SQLite database for small experiment summaries only |
 | `MAX_UPLOAD_BYTES` | `52428800` | Maximum size of each upload |
 | `MAX_DECODED_BYTES` | `134217728` | Maximum decoded size of each image to limit decompression/memory risks |
-| `FRONTEND_ORIGINS` | `http://localhost:3000,http://localhost:8501` | Comma-separated allowed CORS origins |
+| `FRONTEND_ORIGINS` | `http://localhost:3000,http://localhost:8501` | Comma-separated allowed CORS and trusted request origins; set to the exact Vercel origin in production |
 | `SESSION_COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
 | `SESSION_MAX_AGE_SECONDS` | `43200` | Maximum authenticated session lifetime |
 | `TRAIN_COMMAND` | unset | Optional operator-controlled command to start a training process |
