@@ -1,0 +1,81 @@
+# Default configuration for Multimodal Deep Learning for Cloud Removal in Satellite Imagery
+# ISRO / Deep Learning Research Architecture Specification
+
+project:
+  name: "Multimodal Deep Learning for Cloud Removal in Satellite Imagery"
+  version: "1.0.0"
+  author: "ISRO Remote-Sensing & Deep Learning Research Architect"
+
+seed: 42
+
+hardware:
+  device: "auto"  # "auto", "cuda", or "cpu"
+  num_workers: 0  # 0 for Windows stability
+  pin_memory: true
+  use_amp: false   # Automatic mixed precision (false for CPU fallback)
+
+data:
+  raw_dir: "data/raw/SEN12MSCRTS/extracted"
+  processed_dir: "data/processed"
+  manifest_dir: "data/manifests"
+  patch_size: 256
+  optical_channels: 13
+  sar_channels: 2
+  use_cloud_mask: true
+  
+  # Reflectance and SAR normalization constants
+  optical_scale: 10000.0   # Sentinel-2 L1C/L2A digital number to surface reflectance [0, 1]
+  sar_min_db: -35.0        # Sentinel-1 min backscatter dB clamp
+  sar_max_db: 0.0          # Sentinel-1 max backscatter dB clamp
+  
+  # Band index conventions for Sentinel-2 (0-indexed: B1 to B12)
+  # B1: 0 (Coastal), B2: 1 (Blue), B3: 2 (Green), B4: 3 (Red),
+  # B5: 4 (RE1), B6: 5 (RE2), B7: 6 (RE3), B8: 7 (NIR),
+  # B8A: 8 (Narrow NIR), B9: 9 (Water Vapour), B10: 10 (Cirrus),
+  # B11: 11 (SWIR1), B12: 12 (SWIR2)
+  rgb_bands: [3, 2, 1]     # True Color RGB: [B4, B3, B2]
+  false_color_bands: [7, 3, 2] # False Color NIR: [B8, B4, B3]
+  swir_bands: [11, 7, 3]   # Short-wave Infrared: [B11, B8, B4]
+
+model:
+  type: "multimodal_cgan"  # "multimodal_cgan", "multimodal_unet", "optical_only_unet"
+  base_channels: 32        # Width of initial feature maps (32 for efficient CPU/GPU memory footprint)
+  use_mask_input: true     # Concatenate cloud mask to generator input
+  dropout: 0.1
+  generator:
+    activation: "relu"
+    norm: "batchnorm"
+    output_activation: "sigmoid"  # Output is normalized optical reflectance in [0, 1]
+  discriminator:
+    norm: "batchnorm"
+    patch_size: 70         # 70x70 PatchGAN
+    n_layers: 3
+
+training:
+  batch_size: 4
+  epochs: 10
+  lr_g: 0.0002
+  lr_d: 0.0002
+  beta1: 0.5
+  beta2: 0.999
+  weight_decay: 0.00001
+  
+  # Loss weights
+  lambda_l1: 100.0         # L1 reconstruction weight
+  lambda_adv: 1.0          # Adversarial loss weight
+  lambda_cloud: 3.0        # Extra emphasis on cloud-covered regions (cloud-aware loss)
+  lambda_clear: 1.0        # Retention weight on clear pixels
+  use_cloud_aware_loss: true
+  
+  # Validation & checkpointing
+  val_interval: 1
+  save_interval: 2
+  checkpoint_dir: "outputs/checkpoints"
+  log_interval: 5
+
+evaluation:
+  metrics: ["psnr", "ssim", "mae", "rmse"]
+  data_range: 1.0
+  report_cloud_regions: true
+  output_dir: "outputs/reports"
+  figure_dir: "outputs/figures"

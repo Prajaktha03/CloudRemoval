@@ -1,0 +1,57 @@
+# SEN12MS-CR-TS Dataset Configuration
+# Standard dataset specifications for multimodal cloud removal
+
+dataset:
+  name: "SEN12MS-CR-TS"
+  description: "Multimodal and Multitemporal Satellite Observations for Cloud Removal"
+  reference_doi: "10.1109/CVPRW56347.2022.00160"
+  sensors:
+    sentinel_1:
+      constellation: "Copernicus Sentinel-1"
+      instrument: "C-SAR (Synthetic Aperture Radar, C-band 5.405 GHz)"
+      acquisition_mode: "Interferometric Wide Swath (IW)"
+      polarizations: ["VV", "VH"]
+      format: "Decibel (dB) backscatter orthorectified GeoTIFF"
+      channels: 2
+      raw_dtype: "float64"
+      typical_min_db: -35.0
+      typical_max_db: 0.0
+      norm_formula: "(np.clip(dB, -35.0, 0.0) + 35.0) / 35.0"
+      
+    sentinel_2:
+      constellation: "Copernicus Sentinel-2"
+      instrument: "MSI (MultiSpectral Instrument)"
+      level: "Level-1C / Level-2A Top-of-Atmosphere / Bottom-of-Atmosphere Reflectance"
+      channels: 13
+      bands:
+        - { index: 0, name: "B1", description: "Coastal aerosol", wavelength_um: 0.443, resolution_m: 60 }
+        - { index: 1, name: "B2", description: "Blue", wavelength_um: 0.490, resolution_m: 10 }
+        - { index: 2, name: "B3", description: "Green", wavelength_um: 0.560, resolution_m: 10 }
+        - { index: 3, name: "B4", description: "Red", wavelength_um: 0.665, resolution_m: 10 }
+        - { index: 4, name: "B5", description: "Vegetation Red Edge 1", wavelength_um: 0.705, resolution_m: 20 }
+        - { index: 5, name: "B6", description: "Vegetation Red Edge 2", wavelength_um: 0.740, resolution_m: 20 }
+        - { index: 6, name: "B7", description: "Vegetation Red Edge 3", wavelength_um: 0.783, resolution_m: 20 }
+        - { index: 7, name: "B8", description: "NIR (Broad)", wavelength_um: 0.842, resolution_m: 10 }
+        - { index: 8, name: "B8A", description: "Narrow NIR", wavelength_um: 0.865, resolution_m: 20 }
+        - { index: 9, name: "B9", description: "Water vapour", wavelength_um: 0.945, resolution_m: 60 }
+        - { index: 10, name: "B10", description: "SWIR - Cirrus", wavelength_um: 1.375, resolution_m: 60 }
+        - { index: 11, name: "B11", description: "SWIR 1", wavelength_um: 1.610, resolution_m: 20 }
+        - { index: 12, name: "B12", description: "SWIR 2", wavelength_um: 2.190, resolution_m: 20 }
+      raw_dtype: "uint16"
+      scale_factor: 10000.0
+      norm_formula: "np.clip(dn / 10000.0, 0.0, 1.0)"
+
+  cloud_masking:
+    algorithm: "spectral_threshold_and_s2cloudless_heuristic"
+    convention:
+      obscured: 1.0
+      clear: 0.0
+    blue_threshold: 0.22      # High blue band reflectance indicative of clouds
+    cirrus_threshold: 0.15    # Cirrus band detection
+    ndci_threshold: 0.18      # Normalized Difference Cloud Index ((B1-B10)/(B1+B10))
+
+  splits:
+    train_rois: ["ROI_2017_22"]
+    val_rois: ["ROI_2017_22"]
+    test_rois: ["ROI_2017_140"]
+    spatial_split_strategy: "geographic_roi_separation"
