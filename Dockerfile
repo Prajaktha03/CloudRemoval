@@ -10,7 +10,7 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y curl libgomp1 python3 python3-venv \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m venv /opt/venv \
-    && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch>=2.2" \
+    && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple "torch>=2.2" \
     && mkdir -p /data \
     && chown node:node /data
 
