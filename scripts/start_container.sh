@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -n "${RAILWAY_PUBLIC_DOMAIN:-}" && -z "${FRONTEND_ORIGINS:-}" ]]; then
-    export FRONTEND_ORIGINS="https://${RAILWAY_PUBLIC_DOMAIN}"
+if [[ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]]; then
+    railway_origin="https://${RAILWAY_PUBLIC_DOMAIN}"
+    frontend_origins="${FRONTEND_ORIGINS:-http://localhost:3000,http://localhost:8501}"
+    if [[ ",${frontend_origins}," != *",${railway_origin},"* ]]; then
+        frontend_origins="${frontend_origins},${railway_origin}"
+    fi
+    export FRONTEND_ORIGINS="${frontend_origins}"
 fi
 
 if [[ -n "${MODEL_CHECKPOINT_URL:-}" && ! -f "${MODEL_CHECKPOINT}" ]]; then
